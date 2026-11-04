@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Life Compass Coach</title>
+  <meta name="description" content="目標を北極星に、朝と夜のルーティンで星を集めるセルフケアアプリ">
+  <meta name="theme-color" content="#070b1f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <main id="view" tabindex="-1"></main>
+    <nav id="tabbar" hidden>
+      <a href="#home" data-tab="home"><span class="ti">✦</span>ホーム</a>
+      <a href="#words" data-tab="words"><span class="ti">❝</span>ことば</a>
+      <a href="#records" data-tab="records"><span class="ti">☾</span>記録</a>
+      <a href="#settings" data-tab="settings"><span class="ti">⚙</span>設定</a>
+    </nav>
+  </div>
+
+  <!-- ルーティン（全画面） -->
+  <section id="routine" hidden>
+    <canvas id="routine-sky" aria-hidden="true"></canvas>
+    <header class="routine-head">
+      <span id="routine-title"></span>
+      <span id="routine-progress"></span>
+      <button id="routine-close" class="icon-btn" aria-label="中断する">✕</button>
+    </header>
+    <div id="routine-stage"></div>
+    <p id="routine-caption" aria-live="polite"></p>
+    <footer class="routine-foot">
+      <button id="routine-skip" class="ghost-btn">次へ ›</button>
+    </footer>
+  </section>
+
+  <div id="modal" hidden></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

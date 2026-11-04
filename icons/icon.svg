@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="#26306a"/><stop offset=".55" stop-color="#121a3d"/><stop offset="1" stop-color="#070b1f"/></radialGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".35" stop-color="#b8ccff" stop-opacity=".5"/><stop offset="1" stop-color="#6d8fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="230" r="150" fill="none" stroke="#ffd98a" stroke-opacity=".35" stroke-width="6"/>
+  <circle cx="256" cy="230" r="110" fill="url(#glow)"/>
+  <path d="M256 110 L272 214 L376 230 L272 246 L256 350 L240 246 L136 230 L240 214 Z" fill="#fff"/>
+  <path d="M256 180 L262 224 L306 230 L262 236 L256 280 L250 236 L206 230 L250 224 Z" fill="#ffd98a"/>
+  <g fill="#ffd98a"><circle cx="150" cy="400" r="7"/><circle cx="220" cy="430" r="5"/><circle cx="300" cy="415" r="6"/><circle cx="370" cy="385" r="7"/></g>
+  <path d="M150 400 L220 430 L300 415 L370 385" stroke="#ffd98a" stroke-opacity=".5" stroke-width="3" fill="none"/>
+</svg>
