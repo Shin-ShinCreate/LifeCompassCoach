@@ -7,7 +7,29 @@ const Sound = (() => {
   let current = null;     // { stop(fadeSec) }
   let bgmVolume = 0.5;
 
+  // iPhone：Web Audio はマナーモードで消音されるため、「再生用の音」として扱わせる
+  let keepAlive = null;
+  function playbackSession() {
+    if (navigator.audioSession) {        // iOS 17 以降
+      try { navigator.audioSession.type = 'playback'; } catch (e) {}
+      return;
+    }
+    // 古い iOS：無音の <audio> を流しておくと、Web Audio もマナーモード中に鳴る
+    if (keepAlive || !/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) || !('ontouchend' in document)) return;
+    const rate = 8000, len = rate / 2, buf = new DataView(new ArrayBuffer(44 + len * 2));
+    const str = (o, s) => [...s].forEach((c, i) => buf.setUint8(o + i, c.charCodeAt(0)));
+    str(0, 'RIFF'); buf.setUint32(4, 36 + len * 2, true); str(8, 'WAVEfmt ');
+    buf.setUint32(16, 16, true); buf.setUint16(20, 1, true); buf.setUint16(22, 1, true);
+    buf.setUint32(24, rate, true); buf.setUint32(28, rate * 2, true); buf.setUint16(32, 2, true);
+    buf.setUint16(34, 16, true); str(36, 'data'); buf.setUint32(40, len * 2, true);
+    keepAlive = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+    keepAlive.loop = true;
+    keepAlive.setAttribute('playsinline', '');
+    keepAlive.play().catch(() => { keepAlive = null; });
+  }
+
   function ensure() {
+    playbackSession();
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       duck = ctx.createGain();

@@ -1,5 +1,5 @@
 // オフライン対応：アプリ本体は先に保存、音声やフォントは使ったときに保存する
-const VERSION = 'lcc-v2';
+const VERSION = 'lcc-v3';
 const SHELL = [
   './', 'index.html', 'styles.css', 'data.js', 'audio.js', 'app.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
