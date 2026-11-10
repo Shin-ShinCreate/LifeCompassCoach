@@ -415,7 +415,7 @@ function audioFor(a) {
   if (a.source === 'template' && audioManifest.affirmations[a.id]) return 'voice';
   return 'text';
 }
-const AUDIO_BADGE = { recording: '<span class="badge rec">● 自分の声</span>', voice: '<span class="badge voice">♪ 音声あり</span>', text: '<span class="badge">文字のみ</span>' };
+const AUDIO_BADGE = { recording: '<span class="badge rec">● 自分の声</span>', voice: '<span class="badge voice">♪ 音声あり</span>', text: `<span class="badge">${Sound.canSpeak ? '端末の声' : '文字のみ'}</span>` };
 
 function renderWords() {
   const mine = state.affirmations;
@@ -494,8 +494,13 @@ function renderWords() {
 let previewClip = null;
 async function previewAffirmation(a) {
   if (previewClip) previewClip.stop();
+  Sound.unlock();   // タップ中に音を出せる状態にしておく（iPhone）
   const src = await affirmationSrc(a);
-  if (!src) { toast('音声がありません。🎙 で自分の声を録音できます'); return; }
+  if (!src) {
+    if (Sound.canSpeak) { previewClip = Sound.speak(a.text, state.settings.voiceVolume); toast('端末の声で読み上げます。🎙 で自分の声に替えられます'); }
+    else toast('音声がありません。🎙 で自分の声を録音できます');
+    return;
+  }
   previewClip = Sound.playClip(src.url, state.settings.voiceVolume);
   previewClip.promise.then(() => src.revoke && src.revoke());
 }
@@ -588,11 +593,12 @@ class Flow {
     });
   }
   sleep(ms) { return this._wait((w, done) => { const t = setTimeout(done, ms); w.cleanup = () => clearTimeout(t); }); }
-  async play(url) {
-    if (!url) return false;
+  play(url) { return url ? this._clip(() => Sound.playClip(url, state.settings.voiceVolume)) : Promise.resolve(false); }
+  speak(text) { return this._clip(() => Sound.speak(text, state.settings.voiceVolume)); }
+  async _clip(start) {
     let ok = false;
     await this._wait((w, done) => {
-      const clip = Sound.playClip(url, state.settings.voiceVolume);
+      const clip = start();
       w.cleanup = () => clip.stop();
       clip.promise.then(r => { ok = r; done(); });
     });
@@ -687,8 +693,11 @@ async function stepAffirm() {
       src.revoke?.();
       await flow.sleep(Math.max(0, 4000 - (Date.now() - t0)));
     } else {
+      // 自作のことばは端末の声で読み上げる（録音すると自分の声に替わる）
       R.caption.textContent = '心の中で、または声に出して唱えましょう';
-      await flow.sleep(Math.max(7000, a.text.length * 330));
+      const t0 = Date.now();
+      await flow.speak(a.text);
+      await flow.sleep(Math.max(0, Math.max(7000, a.text.length * 330) - (Date.now() - t0)));
     }
     await flow.sleep(1800);
   }

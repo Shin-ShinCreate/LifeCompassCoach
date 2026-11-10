@@ -15,21 +15,43 @@ const Sound = (() => {
       return;
     }
     // 古い iOS：無音の <audio> を流しておくと、Web Audio もマナーモード中に鳴る
-    if (keepAlive || !/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) || !('ontouchend' in document)) return;
+    if (keepAlive || !isIOS) return;
+    keepAlive = new Audio(silentUrl());
+    keepAlive.loop = true;
+    keepAlive.setAttribute('playsinline', '');
+    keepAlive.play().catch(() => { keepAlive = null; });
+  }
+
+  const isIOS = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+  let silent = null;
+  function silentUrl() {
+    if (silent) return silent;
     const rate = 8000, len = rate / 2, buf = new DataView(new ArrayBuffer(44 + len * 2));
     const str = (o, s) => [...s].forEach((c, i) => buf.setUint8(o + i, c.charCodeAt(0)));
     str(0, 'RIFF'); buf.setUint32(4, 36 + len * 2, true); str(8, 'WAVEfmt ');
     buf.setUint32(16, 16, true); buf.setUint16(20, 1, true); buf.setUint16(22, 1, true);
     buf.setUint32(24, rate, true); buf.setUint32(28, rate * 2, true); buf.setUint16(32, 2, true);
     buf.setUint16(34, 16, true); str(36, 'data'); buf.setUint32(40, len * 2, true);
-    keepAlive = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
-    keepAlive.loop = true;
-    keepAlive.setAttribute('playsinline', '');
-    keepAlive.play().catch(() => { keepAlive = null; });
+    return (silent = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+  }
+
+  // iPhone はタップなしで新しい <audio> を鳴らせないことがあるため、
+  // タップ時に一度鳴らした要素を音声クリップ用に使い回す
+  const voiceEl = new Audio();
+  voiceEl.setAttribute('playsinline', '');
+  let voiceUnlocked = false;
+  function unlockVoice() {
+    if (voiceUnlocked) return;
+    voiceUnlocked = true;
+    voiceEl.src = silentUrl();
+    voiceEl.play().catch(() => { voiceUnlocked = false; });
+    // 端末の読み上げも、タップ中に一度話させておくと後から使える
+    if (window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance(''));
   }
 
   function ensure() {
     playbackSession();
+    unlockVoice();
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       duck = ctx.createGain();
@@ -234,18 +256,58 @@ const Sound = (() => {
   }
 
   // 音声クリップ。{ promise, stop } を返す（promise は再生できたら true）
+  let clipEnd = null;     // 再生中のクリップを終わらせる関数
   function playClip(url, volume = 1) {
-    const el = new Audio(url);
-    el.volume = Math.max(0, Math.min(1, volume));
-    let finish;
+    clipEnd?.(true);
+    const el = voiceEl;
+    let finish, settled = false;
     const promise = new Promise(res => { finish = res; });
-    const done = ok => { setDuck(false); finish(ok); };
-    el.addEventListener('ended', () => done(true), { once: true });
-    el.addEventListener('error', () => done(false), { once: true });
+    const onEnded = () => done(true), onError = () => done(false);
+    const done = ok => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener('ended', onEnded);
+      el.removeEventListener('error', onError);
+      if (clipEnd === done) clipEnd = null;
+      setDuck(false); finish(ok);
+    };
+    clipEnd = done;
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('error', onError);
+    el.src = url;
+    el.volume = Math.max(0, Math.min(1, volume));
     setDuck(true);
     el.play().catch(() => done(false));
-    return { promise, stop: () => { el.pause(); done(true); } };
+    return { promise, stop: () => { if (!settled) el.pause(); done(true); } };
   }
 
-  return { unlock: ensure, startBgm, stopBgm, setBgmVolume, bell, playClip };
+  // 音声ファイルのない（自作の）ことばを端末の声で読み上げる。{ promise, stop }
+  const MALE_JA = /Otoya|Hattori|Ichiro|Keita|Daichi|男/i;
+  function pickVoice() {
+    const ja = speechSynthesis.getVoices().filter(v => /^ja/i.test(v.lang));
+    return ja.find(v => MALE_JA.test(v.name)) || ja[0] || null;
+  }
+  function speak(text, volume = 1) {
+    if (!window.speechSynthesis) return { promise: Promise.resolve(false), stop() {} };
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    const v = pickVoice();
+    if (v) u.voice = v;
+    u.rate = 0.85; u.pitch = 0.9;
+    u.volume = Math.max(0, Math.min(1, volume));
+    let finish, settled = false;
+    const promise = new Promise(res => { finish = res; });
+    const done = ok => { if (settled) return; settled = true; clearTimeout(guard); setDuck(false); finish(ok); };
+    u.onend = () => done(true);
+    u.onerror = () => done(false);
+    // 終了イベントが来ない端末のための保険
+    const guard = setTimeout(() => done(true), 3000 + text.length * 400);
+    setDuck(true);
+    speechSynthesis.speak(u);
+    return { promise, stop: () => { speechSynthesis.cancel(); done(true); } };
+  }
+  if (window.speechSynthesis) speechSynthesis.getVoices();   // 声の一覧を先に読み込む
+
+  return { unlock: ensure, startBgm, stopBgm, setBgmVolume, bell, playClip, speak, canSpeak: !!window.speechSynthesis };
 })();

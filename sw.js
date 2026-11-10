@@ -1,5 +1,5 @@
 // オフライン対応：アプリ本体は先に保存、音声やフォントは使ったときに保存する
-const VERSION = 'lcc-v3';
+const VERSION = 'lcc-v4';
 const SHELL = [
   './', 'index.html', 'styles.css', 'data.js', 'audio.js', 'app.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
@@ -28,5 +28,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   // アプリ本体は最新を優先し、オフライン時だけ保存済みを使う
-  e.respondWith(fetch(req).then(put).catch(() => caches.match(req).then(hit => hit || caches.match('index.html'))));
+  // ブラウザのキャッシュも通さず、毎回サーバーに更新を確かめる
+  const fresh = url.origin === location.origin ? fetch(req.url, { cache: 'no-cache' }) : fetch(req);
+  e.respondWith(fresh.then(put).catch(() => caches.match(req).then(hit => hit || caches.match('index.html'))));
 });
